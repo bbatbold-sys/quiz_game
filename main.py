@@ -118,22 +118,35 @@ def play_quiz(timed: bool = False):
             choice_idx = get_choice("Your answer (number):", len(q.choices)) - 1
             correct = q.check(choice_idx)
 
-        tracker.record(correct)
+        details = tracker.record(correct, q.difficulty)
         if correct:
             print_correct()
+            bonus_parts = []
+            if details["difficulty_bonus"]:
+                bonus_parts.append(f"difficulty +{details['difficulty_bonus']}")
+            if details["streak_bonus"]:
+                bonus_parts.append(f"streak x{tracker.streak} +{details['streak_bonus']}")
+            bonus_str = f" ({', '.join(bonus_parts)})" if bonus_parts else ""
+            _print(f"  {GREEN}+{details['points_earned']} pts{bonus_str}{RESET}")
         else:
             print_wrong(q.correct_answer)
+            if tracker.best_streak > 0:
+                _print(f"  {RED}Streak broken!{RESET}")
         print_score(tracker.correct, tracker.total)
+        _print(f"  {BLUE}Points: {tracker.points}{RESET}")
 
     # Final results
     print_header("Results")
     _print(f"  {BOLD}Final Score: {tracker.correct}/{tracker.total} "
-           f"({tracker.percentage:.0f}%){RESET}\n")
+           f"({tracker.percentage:.0f}%){RESET}")
+    _print(f"  {BOLD}Total Points: {tracker.points}{RESET}")
+    _print(f"  {BOLD}Best Streak:  {tracker.best_streak}{RESET}\n")
 
     # Save score
     name = get_input("Enter your name for the leaderboard:")
     if name.strip():
-        save_high_score(name.strip(), tracker.correct, tracker.total, cat_label)
+        save_high_score(name.strip(), tracker.correct, tracker.total, cat_label,
+                        tracker.points, tracker.best_streak)
         _print(f"\n  {GREEN}Score saved!{RESET}\n")
 
 
@@ -144,13 +157,14 @@ def show_high_scores():
     if not scores:
         _print("  No scores yet. Play a game first!\n")
         return
-    _print(f"  {BOLD}{'#':<4}{'Name':<15}{'Score':<10}{'%':<8}{'Date':<16}{'Category'}{RESET}")
-    _print(f"  {'-' * 65}")
+    _print(f"  {BOLD}{'#':<4}{'Name':<12}{'Score':<8}{'Pts':<7}{'%':<7}{'Streak':<8}{'Category'}{RESET}")
+    _print(f"  {'-' * 60}")
     for i, s in enumerate(scores, 1):
-        _print(f"  {YELLOW}{i:<4}{RESET}{s['name']:<15}"
-               f"{s['score']}/{s['total']:<8}"
-               f"{s['percentage']:<8}"
-               f"{s['date']:<16}"
+        _print(f"  {YELLOW}{i:<4}{RESET}{s['name']:<12}"
+               f"{s['score']}/{s['total']:<6}"
+               f"{s.get('points', 0):<7}"
+               f"{s['percentage']:<7}"
+               f"{s.get('best_streak', 0):<8}"
                f"{s['category']}")
     print()
 
