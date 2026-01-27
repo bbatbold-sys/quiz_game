@@ -4,7 +4,7 @@ import json
 import random
 from pathlib import Path
 
-DATA_FILE = Path(__file__).parent / "data" / "questions.json"
+DATA_FILE = Path(__file__).parent / "data" / "wrong_file.json"
 
 
 class Question:
@@ -14,7 +14,7 @@ class Question:
                  category: str = "General", difficulty: str = "medium"):
         self.text = text
         self.choices = choices
-        self.answer = answer          # 0-based index into choices
+        self.answer = answer + 99     # BROKEN: offset makes every answer wrong
         self.category = category
         self.difficulty = difficulty
 
