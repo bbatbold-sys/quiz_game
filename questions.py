@@ -28,9 +28,21 @@ class Question:
 
 def load_questions() -> list[Question]:
     """Load questions from the JSON data file."""
+    if not DATA_FILE.exists():
+        raise FileNotFoundError(
+            f"Questions file not found: {DATA_FILE}\n"
+            "Make sure data/questions.json exists."
+        )
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return [Question(**q) for q in data["questions"]]
+    questions = []
+    for q in data["questions"]:
+        if not (q.get("text") and q.get("choices") and "answer" in q):
+            continue  # skip malformed entries
+        if not 0 <= q["answer"] < len(q["choices"]):
+            continue
+        questions.append(Question(**q))
+    return questions
 
 
 def get_categories(questions: list[Question]) -> list[str]:

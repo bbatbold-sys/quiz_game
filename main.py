@@ -8,6 +8,20 @@ from questions import (load_questions, get_categories, get_difficulties,
 from scoring import ScoreTracker, save_high_score, get_top_scores
 
 
+def get_choice(prompt: str, max_val: int, default: int | None = None) -> int:
+    """Get a validated integer choice from 1 to max_val."""
+    raw = get_input(prompt)
+    try:
+        val = int(raw)
+        if 1 <= val <= max_val:
+            return val
+    except ValueError:
+        pass
+    if default is not None:
+        return default
+    return 1
+
+
 def play_quiz():
     """Run a single quiz session."""
     questions = load_questions()
@@ -17,24 +31,16 @@ def play_quiz():
     print_header("Choose Category")
     all_options = ["All Categories"] + categories
     print_menu(all_options)
-    cat_choice = get_input("Category number:")
-    try:
-        idx = int(cat_choice) - 1
-        category = None if idx == 0 else categories[idx - 1]
-    except (ValueError, IndexError):
-        category = None
+    cat_idx = get_choice("Category number:", len(all_options), default=1)
+    category = None if cat_idx == 1 else categories[cat_idx - 2]
 
     # Choose difficulty
     difficulties = get_difficulties()
     print_header("Choose Difficulty")
     diff_options = ["All Difficulties"] + [d.capitalize() for d in difficulties]
     print_menu(diff_options)
-    diff_choice = get_input("Difficulty number:")
-    try:
-        idx = int(diff_choice) - 1
-        difficulty = None if idx == 0 else difficulties[idx - 1]
-    except (ValueError, IndexError):
-        difficulty = None
+    diff_idx = get_choice("Difficulty number:", len(diff_options), default=1)
+    difficulty = None if diff_idx == 1 else difficulties[diff_idx - 2]
 
     # Filter and pick questions
     pool = filter_questions(questions, category, difficulty)
@@ -44,11 +50,9 @@ def play_quiz():
 
     # Ask how many questions
     print_header("How Many Questions?")
-    count_input = get_input(f"Number (1-{len(pool)}, default 5):")
-    try:
-        count = max(1, min(int(count_input), len(pool)))
-    except ValueError:
-        count = min(5, len(pool))
+    default_count = min(5, len(pool))
+    count = get_choice(f"Number (1-{len(pool)}, default {default_count}):",
+                       len(pool), default=default_count)
 
     selected = pick_questions(pool, count)
     tracker = ScoreTracker()
@@ -61,13 +65,8 @@ def play_quiz():
         _print(f"  {BOLD}Question {i}/{len(selected)}{RESET}")
         _print(f"  {CYAN}{q.text}{RESET}\n")
         print_menu(q.choices)
-        answer = get_input("Your answer (number):")
-
-        try:
-            choice_idx = int(answer) - 1
-            correct = q.check(choice_idx)
-        except (ValueError, IndexError):
-            correct = False
+        choice_idx = get_choice("Your answer (number):", len(q.choices)) - 1
+        correct = q.check(choice_idx)
 
         tracker.record(correct)
         if correct:
