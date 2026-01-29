@@ -1,11 +1,16 @@
 """Quiz Master - Main game loop and user interface."""
 
 import time
-from display import (banner, print_menu, get_input, print_header,
-                     print_correct, print_wrong, print_score, _print,
-                     CYAN, RESET, BOLD, YELLOW, GREEN, RED, BLUE)
-from questions import (load_questions, get_categories, get_difficulties,
-                       filter_questions, pick_questions)
+from display import (
+    banner, print_menu, get_input, print_header, print_correct, print_wrong,
+    _print, clear_screen, print_box, print_question_box, print_choices,
+    print_score_bar, print_results, print_countdown, print_loading,
+    print_welcome_animation, CYAN, RESET, BOLD, YELLOW, GREEN, RED, MAGENTA, WHITE, DIM
+)
+from questions import (
+    load_questions, get_categories, get_difficulties,
+    filter_questions, pick_questions
+)
 from scoring import ScoreTracker, save_high_score, get_top_scores
 
 
@@ -25,100 +30,165 @@ def get_choice(prompt: str, max_val: int, default: int | None = None) -> int:
 
 def show_help():
     """Display help and game instructions."""
-    print_header("How to Play")
-    _print(f"  {BOLD}Quiz Master{RESET} tests your knowledge across multiple categories.\n")
-    _print(f"  {YELLOW}1.{RESET} Choose a category (or play all)")
-    _print(f"  {YELLOW}2.{RESET} Select a difficulty level")
-    _print(f"  {YELLOW}3.{RESET} Pick how many questions you want")
-    _print(f"  {YELLOW}4.{RESET} Answer by typing the option number")
-    _print(f"  {YELLOW}5.{RESET} Your score is saved to the leaderboard\n")
-    _print(f"  {BOLD}Timed Mode:{RESET} You have 15 seconds per question.")
-    _print(f"  If time runs out, the question is marked wrong.\n")
-    _print(f"  {BOLD}Categories:{RESET} Geography, Science, History, Literature,")
-    _print(f"  Art, Technology\n")
-    _print(f"  {BOLD}Difficulties:{RESET} Easy, Medium, Hard\n")
+    clear_screen()
+    _print(f"""
+{CYAN}{BOLD}
+    ╔═══════════════════════════════════════════════════════╗
+    ║                  HOW TO PLAY                          ║
+    ╠═══════════════════════════════════════════════════════╣
+{RESET}
+    {BOLD}1.{RESET} Choose a category (or play all categories)
+    {BOLD}2.{RESET} Select your difficulty level
+    {BOLD}3.{RESET} Pick how many questions you want
+    {BOLD}4.{RESET} Answer by typing the option number (1-4)
+    {BOLD}5.{RESET} Your score is saved to the leaderboard
+
+{CYAN}{BOLD}    ╠═══════════════════════════════════════════════════════╣
+    ║                  SCORING SYSTEM                       ║
+    ╠═══════════════════════════════════════════════════════╣{RESET}
+
+    {GREEN}Base Points:{RESET}      10 points per correct answer
+    {YELLOW}Difficulty Bonus:{RESET} Easy x1 | Medium x2 | Hard x3
+    {RED}Streak Bonus:{RESET}     Up to +25 points for consecutive wins
+
+{CYAN}{BOLD}    ╠═══════════════════════════════════════════════════════╣
+    ║                  GAME MODES                           ║
+    ╠═══════════════════════════════════════════════════════╣{RESET}
+
+    {YELLOW}[1] Normal Mode:{RESET}  Take your time, no pressure
+    {RED}[2] Timed Mode:{RESET}   15 seconds per question!
+
+{CYAN}{BOLD}    ╠═══════════════════════════════════════════════════════╣
+    ║                  CATEGORIES                           ║
+    ╠═══════════════════════════════════════════════════════╣{RESET}
+
+    {MAGENTA}Geography{RESET} | {CYAN}Science{RESET} | {YELLOW}History{RESET}
+    {GREEN}Literature{RESET} | {RED}Art{RESET} | {BOLD}Technology{RESET}
+
+{CYAN}{BOLD}    ╚═══════════════════════════════════════════════════════╝{RESET}
+""")
+    get_input("Press ENTER to go back...")
 
 
 def show_stats():
     """Show overall statistics from saved scores."""
+    clear_screen()
     scores = get_top_scores(100)
-    print_header("Statistics")
+
     if not scores:
-        _print("  No games played yet.\n")
+        print_header("STATISTICS")
+        _print(f"    {DIM}No games played yet. Start playing to see stats!{RESET}\n")
+        get_input("Press ENTER to go back...")
         return
+
     total_games = len(scores)
     avg_pct = sum(s["percentage"] for s in scores) / total_games
     best = scores[0]
-    _print(f"  {BOLD}Total games recorded:{RESET} {total_games}")
-    _print(f"  {BOLD}Average score:{RESET}        {avg_pct:.1f}%")
-    _print(f"  {BOLD}Best score:{RESET}           {best['name']} - {best['percentage']}%")
-    _print(f"  {BOLD}Best category:{RESET}        {best['category']}\n")
+    total_points = sum(s.get("points", 0) for s in scores)
+
+    _print(f"""
+{CYAN}{BOLD}
+    ╔═══════════════════════════════════════════════════════╗
+    ║                   YOUR STATISTICS                     ║
+    ╠═══════════════════════════════════════════════════════╣{RESET}
+
+    {BOLD}Total Games Played:{RESET}    {CYAN}{total_games}{RESET}
+
+    {BOLD}Total Points Earned:{RESET}   {YELLOW}{total_points}{RESET}
+
+    {BOLD}Average Score:{RESET}         {GREEN}{avg_pct:.1f}%{RESET}
+
+    {BOLD}Best Performance:{RESET}      {best['name']} - {best['percentage']}%
+
+    {BOLD}Top Category:{RESET}          {best['category']}
+
+{CYAN}{BOLD}    ╚═══════════════════════════════════════════════════════╝{RESET}
+""")
+    get_input("Press ENTER to go back...")
 
 
 def play_quiz(timed: bool = False):
     """Run a single quiz session."""
+    clear_screen()
+    print_loading("Loading questions", 0.5)
+
     questions = load_questions()
 
     # Choose category
     categories = get_categories(questions)
-    print_header("Choose Category")
+    print_header("SELECT CATEGORY")
     all_options = ["All Categories"] + categories
     print_menu(all_options)
-    cat_idx = get_choice("Category number:", len(all_options), default=1)
+    cat_idx = get_choice("Enter your choice:", len(all_options), default=1)
     category = None if cat_idx == 1 else categories[cat_idx - 2]
 
     # Choose difficulty
+    clear_screen()
+    print_header("SELECT DIFFICULTY")
     difficulties = get_difficulties()
-    print_header("Choose Difficulty")
-    diff_options = ["All Difficulties"] + [d.capitalize() for d in difficulties]
-    print_menu(diff_options)
-    diff_idx = get_choice("Difficulty number:", len(diff_options), default=1)
-    difficulty = None if diff_idx == 1 else difficulties[diff_idx - 2]
+    diff_display = [
+        f"{GREEN}Easy{RESET}    - Warm up your brain",
+        f"{YELLOW}Medium{RESET}  - A fair challenge",
+        f"{RED}Hard{RESET}    - For true masters"
+    ]
+    for i, d in enumerate(diff_display, 1):
+        _print(f"      {YELLOW}{BOLD}[{i}]{RESET} {d}")
+    print()
+    diff_idx = get_choice("Enter your choice:", 3, default=1)
+    difficulty = difficulties[diff_idx - 1]
 
     # Filter and pick questions
     pool = filter_questions(questions, category, difficulty)
     if not pool:
-        _print("\n  No questions match your filters. Try again.\n")
+        _print(f"\n    {RED}No questions match your filters. Try again.{RESET}\n")
+        time.sleep(1.5)
         return
 
     # Ask how many questions
-    print_header("How Many Questions?")
-    default_count = min(5, len(pool))
-    count = get_choice(f"Number (1-{len(pool)}, default {default_count}):",
+    clear_screen()
+    print_header("HOW MANY QUESTIONS?")
+    _print(f"    {DIM}Available: {len(pool)} questions{RESET}\n")
+    default_count = min(10, len(pool))
+    count = get_choice(f"Enter number (1-{len(pool)}, default {default_count}):",
                        len(pool), default=default_count)
 
     selected = pick_questions(pool, count)
     tracker = ScoreTracker()
     time_limit = 15 if timed else None
 
-    # Quiz loop
-    cat_label = category or "All"
-    mode_label = " [TIMED]" if timed else ""
-    print_header(f"Quiz: {cat_label} ({difficulty or 'all'} difficulty){mode_label}")
-
+    # Countdown
+    clear_screen()
+    cat_label = category or "All Categories"
+    _print(f"\n    {BOLD}Category:{RESET} {CYAN}{cat_label}{RESET}")
+    _print(f"    {BOLD}Difficulty:{RESET} {YELLOW}{difficulty.capitalize()}{RESET}")
+    _print(f"    {BOLD}Questions:{RESET} {GREEN}{count}{RESET}")
     if timed:
-        _print(f"  {RED}{BOLD}You have {time_limit} seconds per question!{RESET}\n")
+        _print(f"    {BOLD}Mode:{RESET} {RED}TIMED (15s per question){RESET}")
+    print_countdown(3)
 
+    # Quiz loop
     for i, q in enumerate(selected, 1):
-        _print(f"  {BOLD}Question {i}/{len(selected)}{RESET}")
-        _print(f"  {CYAN}{q.text}{RESET}\n")
-        print_menu(q.choices)
+        clear_screen()
+        print_question_box(i, len(selected), q.text, q.difficulty)
+        print_choices(q.choices)
 
         if timed:
+            _print(f"    {RED}{BOLD}>>> You have {time_limit} seconds! <<<{RESET}\n")
             start = time.time()
-            choice_idx = get_choice("Your answer (number):", len(q.choices)) - 1
+            choice_idx = get_choice("Your answer:", len(q.choices)) - 1
             elapsed = time.time() - start
             if elapsed > time_limit:
-                _print(f"  {RED}Time's up! ({elapsed:.1f}s){RESET}")
+                _print(f"\n    {RED}{BOLD}TIME'S UP!{RESET} ({elapsed:.1f}s)")
                 correct = False
             else:
-                _print(f"  {BLUE}Answered in {elapsed:.1f}s{RESET}")
+                _print(f"\n    {DIM}Answered in {elapsed:.1f}s{RESET}")
                 correct = q.check(choice_idx)
         else:
-            choice_idx = get_choice("Your answer (number):", len(q.choices)) - 1
+            choice_idx = get_choice("Your answer:", len(q.choices)) - 1
             correct = q.check(choice_idx)
 
         details = tracker.record(correct, q.difficulty)
+
         if correct:
             print_correct()
             bonus_parts = []
@@ -127,58 +197,91 @@ def play_quiz(timed: bool = False):
             if details["streak_bonus"]:
                 bonus_parts.append(f"streak x{tracker.streak} +{details['streak_bonus']}")
             bonus_str = f" ({', '.join(bonus_parts)})" if bonus_parts else ""
-            _print(f"  {GREEN}+{details['points_earned']} pts{bonus_str}{RESET}")
+            _print(f"    {GREEN}{BOLD}+{details['points_earned']} points{bonus_str}{RESET}")
         else:
             print_wrong(q.correct_answer)
             if tracker.best_streak > 0:
-                _print(f"  {RED}Streak broken!{RESET}")
-        print_score(tracker.correct, tracker.total)
-        _print(f"  {BLUE}Points: {tracker.points}{RESET}")
+                _print(f"    {RED}Streak broken!{RESET}")
+
+        print_score_bar(tracker.correct, tracker.total, tracker.points, tracker.streak)
+
+        if i < len(selected):
+            get_input("Press ENTER for next question...")
 
     # Final results
-    print_header("Results")
-    _print(f"  {BOLD}Final Score: {tracker.correct}/{tracker.total} "
-           f"({tracker.percentage:.0f}%){RESET}")
-    _print(f"  {BOLD}Total Points: {tracker.points}{RESET}")
-    _print(f"  {BOLD}Best Streak:  {tracker.best_streak}{RESET}\n")
+    print_results(tracker.correct, tracker.total, tracker.points,
+                  tracker.best_streak, tracker.percentage)
 
     # Save score
     name = get_input("Enter your name for the leaderboard:")
     if name.strip():
         save_high_score(name.strip(), tracker.correct, tracker.total, cat_label,
                         tracker.points, tracker.best_streak)
-        _print(f"\n  {GREEN}Score saved!{RESET}\n")
+        _print(f"\n    {GREEN}{BOLD}Score saved to leaderboard!{RESET}\n")
+        time.sleep(1)
 
 
 def show_high_scores():
     """Display the leaderboard."""
-    scores = get_top_scores(5)
-    print_header("Leaderboard - Top 5")
+    clear_screen()
+    scores = get_top_scores(10)
+
+    _print(f"""
+{YELLOW}{BOLD}
+    ╔═══════════════════════════════════════════════════════════════════╗
+    ║                        LEADERBOARD                                ║
+    ╠═══════════════════════════════════════════════════════════════════╣{RESET}
+""")
+
     if not scores:
-        _print("  No scores yet. Play a game first!\n")
-        return
-    _print(f"  {BOLD}{'#':<4}{'Name':<12}{'Score':<8}{'Pts':<7}{'%':<7}{'Streak':<8}{'Category'}{RESET}")
-    _print(f"  {'-' * 60}")
-    for i, s in enumerate(scores, 1):
-        _print(f"  {YELLOW}{i:<4}{RESET}{s['name']:<12}"
-               f"{s['score']}/{s['total']:<6}"
-               f"{s.get('points', 0):<7}"
-               f"{s['percentage']:<7}"
-               f"{s.get('best_streak', 0):<8}"
-               f"{s['category']}")
-    print()
+        _print(f"    {DIM}No scores yet. Be the first to play!{RESET}")
+    else:
+        _print(f"    {BOLD}{'#':<4}{'Name':<15}{'Score':<10}{'Points':<10}{'Streak':<10}{'Category'}{RESET}")
+        _print(f"    {'-' * 63}")
+        for i, s in enumerate(scores, 1):
+            medal = ""
+            if i == 1:
+                medal = f"{YELLOW}🥇{RESET}"
+            elif i == 2:
+                medal = f"{WHITE}🥈{RESET}"
+            elif i == 3:
+                medal = f"{RED}🥉{RESET}"
+
+            _print(f"    {medal}{CYAN}{i:<4}{RESET}"
+                   f"{s['name']:<15}"
+                   f"{s['score']}/{s['total']:<8}"
+                   f"{YELLOW}{s.get('points', 0):<10}{RESET}"
+                   f"{GREEN}{s.get('best_streak', 0):<10}{RESET}"
+                   f"{s['category']}")
+
+    _print(f"""
+{YELLOW}{BOLD}
+    ╚═══════════════════════════════════════════════════════════════════╝{RESET}
+""")
+    get_input("Press ENTER to go back...")
 
 
 def main():
     """Main menu loop."""
     banner()
-    options = ["Start Quiz", "Timed Quiz", "View High Scores",
-               "Statistics", "Help", "Quit"]
+    print_welcome_animation()
+    time.sleep(0.5)
+
+    menu_options = [
+        f"{GREEN}Start Quiz{RESET}      - Normal mode, take your time",
+        f"{RED}Timed Quiz{RESET}      - 15 seconds per question!",
+        f"{YELLOW}Leaderboard{RESET}     - View top scores",
+        f"{CYAN}Statistics{RESET}      - Your performance stats",
+        f"{MAGENTA}How to Play{RESET}     - Game instructions",
+        f"{DIM}Quit{RESET}            - Exit the game"
+    ]
 
     while True:
-        print_header("Main Menu")
-        print_menu(options)
-        choice = get_input("Choose an option:")
+        clear_screen()
+        banner()
+        print_header("MAIN MENU")
+        print_menu(menu_options)
+        choice = get_input("Enter your choice:")
 
         if choice == "1":
             play_quiz()
@@ -191,10 +294,22 @@ def main():
         elif choice == "5":
             show_help()
         elif choice == "6":
-            _print("\n  Thanks for playing! Goodbye.\n")
+            clear_screen()
+            _print(f"""
+{CYAN}{BOLD}
+    ╔═══════════════════════════════════════════════════════╗
+    ║                                                       ║
+    ║           Thanks for playing Quiz Master!             ║
+    ║                                                       ║
+    ║                    See you next time!                 ║
+    ║                                                       ║
+    ╚═══════════════════════════════════════════════════════╝
+{RESET}
+""")
             break
         else:
-            _print("\n  Invalid choice. Try again.\n")
+            _print(f"\n    {RED}Invalid choice. Please try again.{RESET}")
+            time.sleep(1)
 
 
 if __name__ == "__main__":
